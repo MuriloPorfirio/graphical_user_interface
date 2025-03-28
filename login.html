@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Login via SSH Real</title>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+  <style>
+    /* Reset e estilos gerais */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #1e1e2f, #27293d);
+      color: #ddd;
+      padding: 20px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #f0f0f0;
+    }
+    /* Container para layout em duas colunas */
+    .container {
+      display: flex;
+      flex-direction: row;
+      gap: 20px;
+      max-width: 1200px;
+      margin: auto;
+    }
+    .notice-section,
+    .login-section {
+      flex: 1;
+      background: rgba(255,255,255,0.05);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    /* Quadro de Avisos */
+    .notice-box {
+      background: linear-gradient(135deg, #ff9800, #f57c00);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      margin-bottom: 20px;
+    }
+    .notice-box h3 {
+      font-size: 1.4em;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+    .notice-box ol {
+      margin-left: 20px;
+    }
+    .notice-box li {
+      margin-bottom: 10px;
+      font-size: 1em;
+      color: #fff;
+      line-height: 1.4;
+    }
+    .notice-box a {
+      color: #e0e0e0;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .collapsible {
+      display: none;
+      margin-top: 10px;
+      background-color: rgba(255,255,255,0.1);
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 4px;
+      font-size: 0.9em;
+      color: #ddd;
+    }
+    /* Estilo do formulário de login */
+    form {
+      background: rgba(0,0,0,0.4);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+    }
+    form label {
+      display: block;
+      margin-top: 10px;
+      color: #ccc;
+    }
+    form input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border: none;
+      border-radius: 5px;
+      font-size: 1em;
+    }
+    form button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 15px;
+      background-color: #00bcd4;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1.1em;
+      transition: background 0.3s ease;
+    }
+    form button:hover {
+      background-color: #0097a7;
+    }
+    #loading, #result {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 1.2em;
+    }
+    #loading { color: #00bcd4; display: none; }
+    /* Indicador de Status */
+    .status-indicator {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      display: flex;
+      align-items: center;
+      background-color: rgba(0,0,0,0.7);
+      padding: 5px 10px;
+      border-radius: 20px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.5);
+      font-size: 0.9em;
+      color: #fff;
+    }
+    .status-icon {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 5px;
+    }
+    .online {
+      background-color: #4caf50;
+      animation: rotate 1s linear infinite;
+    }
+    .offline { background-color: #f44336; }
+    @keyframes rotate {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    /* Responsividade */
+    @media (max-width: 768px) {
+      .container { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <h2>Login no Servidor SSH</h2>
+  <div class="container">
+    <!-- Coluna da esquerda: Avisos -->
+    <div class="notice-section">
+      <div class="notice-box">
+        <h3>IMPORTANTE: Leia antes de iniciar</h3>
+        <ol>
+          <li>Os seus arquivos fastq a serem processados já devem estar no servidor que você acessará.</li>
+          <li>O servidor precisa já ter todas as imagens Docker necessárias instaladas. <a id="toggle-list">Clique aqui para verificar a lista</a>.
+            <div id="docker-list" class="collapsible">
+              <p>1 - Exemplo de imagem Docker A</p>
+              <p>2 - Exemplo de imagem Docker B</p>
+              <p>3 - Exemplo de imagem Docker C</p>
+            </div>
+          </li>
+          <li>O servidor local deve estar aberto na porta 3000. Caso o servidor local esteja fechado, contate o desenvolvedor.</li>
+          <li>Você deve estar utilizando a internet institucional do Hospital de Amor de Barretos.</li>
+        </ol>
+      </div>
+    </div>
+    <!-- Coluna da direita: Formulário de Login -->
+    <div class="login-section">
+      <form id="sshForm">
+        <label for="server">Endereço do Servidor (IP):</label>
+        <input type="text" id="server" placeholder="Ex: 192.168.0.1" required>
+        
+        <label for="username">Login:</label>
+        <input type="text" id="username" required>
+        
+        <label for="password">Senha:</label>
+        <input type="password" id="password" required>
+        
+        <button type="submit">Entrar</button>
+      </form>
+      <div id="loading">Carregando: Tentando conexão SSH...</div>
+      <div id="result"></div>
+    </div>
+  </div>
+  
+  <!-- Indicador de Status do Servidor Local -->
+  <div class="status-indicator" id="status-indicator">
+    <div class="status-icon offline" id="status-icon"></div>
+    <span id="status-text">Servidor local: Desconhecido</span>
+  </div>
+  
+  <script>
+    // Toggle da lista de imagens Docker
+    document.getElementById('toggle-list').addEventListener('click', function() {
+      var list = document.getElementById('docker-list');
+      list.style.display = (list.style.display === 'block') ? 'none' : 'block';
+    });
+    
+    // Handler do formulário de login
+    document.getElementById('sshForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      const server = document.getElementById('server').value.trim();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      
+      const loadingEl = document.getElementById('loading');
+      const resultEl = document.getElementById('result');
+      loadingEl.style.display = 'block';
+      resultEl.textContent = '';
+      
+      fetch('https://localhost:3000/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ server, username, password })
+      })
+      .then(response => {
+        loadingEl.style.display = 'none';
+        if (!response.ok) {
+          return response.json().then(data => { throw new Error(data.message || 'Erro na requisição'); });
+        }
+        return response.json();
+      })
+      .then(data => {
+        resultEl.textContent = data.message;
+        // Armazena o token recebido para uso em outras requisições
+        sessionStorage.setItem('token', data.token);
+        // Redireciona para a página do explorador após 5 segundos
+        setTimeout(() => { window.location.href = 'browser.html'; }, 5000);
+      })
+      .catch(error => { resultEl.textContent = 'Erro: ' + error.message; });
+    });
+    
+    // Função para checar o status do servidor local (endpoint /health)
+    function checkServerStatus() {
+      fetch('https://localhost:3000/health')
+        .then(response => {
+          if (response.ok) { updateStatus(true); }
+          else { updateStatus(false); }
+        })
+        .catch(() => { updateStatus(false); });
+    }
+    
+    // Atualiza o indicador de status
+    function updateStatus(isOnline) {
+      const statusIcon = document.getElementById('status-icon');
+      const statusText = document.getElementById('status-text');
+      if (isOnline) {
+        statusIcon.className = 'status-icon online';
+        statusText.textContent = 'Servidor local: Online';
+      } else {
+        statusIcon.className = 'status-icon offline';
+        statusText.textContent = 'Servidor local: Offline';
+      }
+    }
+    
+    // Verifica o status a cada 5 segundos e inicializa a verificação
+    setInterval(checkServerStatus, 5000);
+    checkServerStatus();
+  </script>
+</body>
+</html>
