@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Navegador de Arquivos</title>
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+  <style>
+    /* Reset e estilos globais */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #1e1e2f, #27293d);
+      color: #eee;
+      padding: 20px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #fff;
+    }
+    /* Layout em duas colunas */
+    .container {
+      display: flex;
+      gap: 20px;
+      max-width: 1200px;
+      margin: auto;
+    }
+    .explorer-section, .chat-section {
+      background: rgba(255,255,255,0.05);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    .explorer-section {
+      flex: 1;
+      max-width: 600px;
+    }
+    .chat-section {
+      flex: 1;
+      max-width: 400px;
+      height: 500px;
+      overflow-y: auto;
+    }
+    /* Explorer - Navegador de Arquivos */
+    #path-display {
+      margin-bottom: 10px;
+      font-weight: bold;
+      color: #fff;
+    }
+    #back-button {
+      margin-bottom: 10px;
+      cursor: pointer;
+      color: #00bcd4;
+      text-decoration: underline;
+      display: none;
+    }
+    #file-list {
+      list-style: none;
+      padding-left: 0;
+    }
+    #file-list li {
+      padding: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #eee;
+      transition: background 0.3s ease;
+    }
+    #file-list li:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    /* Ícones para diretórios e arquivos */
+    .icon {
+      font-size: 1.5em;
+    }
+    /* Chat */
+    .chat-section p {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Navegador de Arquivos no Servidor SSH</h2>
+  <div class="container">
+    <!-- Seção do Explorer (à esquerda) -->
+    <div class="explorer-section">
+      <div id="path-display">Caminho: /</div>
+      <div id="back-button">← Voltar</div>
+      <ul id="file-list"></ul>
+    </div>
+    <!-- Seção do Chat (à direita) -->
+    <div class="chat-section" id="chat">
+      <p><strong>Chat de Arquivos:</strong></p>
+    </div>
+  </div>
+  
+  <script>
+    // Recupera o token armazenado no sessionStorage
+    const token = sessionStorage.getItem('token');
+    if (!token) {
+      alert('Token não encontrado. Por favor, faça login novamente.');
+      window.location.href = 'index.html';
+      throw new Error('Token não encontrado.');
+    }
+    
+    let currentPath = '/';
+    
+    // Função auxiliar para requisições autenticadas
+    function authFetch(url, options = {}) {
+      options.headers = options.headers || {};
+      options.headers['Authorization'] = 'Bearer ' + token;
+      return fetch(url, options);
+    }
+    
+    // Função para listar o conteúdo do diretório
+    function listDirectory(path) {
+      document.getElementById('path-display').textContent = 'Caminho: ' + path;
+      authFetch('https://localhost:3000/api/list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path })
+      })
+      .then(response => response.json())
+      .then(data => {
+        const fileList = document.getElementById('file-list');
+        fileList.innerHTML = '';
+        data.items.forEach(item => {
+          const li = document.createElement('li');
+          const icon = document.createElement('span');
+          icon.classList.add('icon');
+          // Define o ícone conforme o tipo do item
+          if (item.type === 'dir') {
+            icon.textContent = '📁';
+          } else {
+            icon.textContent = '📄';
+          }
+          li.appendChild(icon);
+          const textNode = document.createTextNode(item.name + (item.type === 'dir' ? '/' : ''));
+          li.appendChild(textNode);
+          li.dataset.type = item.type;
+          li.dataset.name = item.name;
+          fileList.appendChild(li);
+        });
+      })
+      .catch(error => { console.error('Erro ao listar diretório:', error); });
+    }
+    
+    // Função para atualizar o chat com o caminho absoluto do arquivo
+    function appendChat(message) {
+      const chat = document.getElementById('chat');
+      const p = document.createElement('p');
+      p.textContent = message;
+      chat.appendChild(p);
+      chat.scrollTop = chat.scrollHeight;
+    }
+    
+    // Evento de clique na lista de arquivos/diretórios
+    document.getElementById('file-list').addEventListener('click', function(event) {
+      const li = event.target.closest('li');
+      if (!li) return;
+      const type = li.dataset.type;
+      const name = li.dataset.name;
+      if (type === 'dir') {
+        // Navega para dentro do diretório
+        currentPath = (currentPath === '/') ? '/' + name : currentPath + '/' + name;
+        listDirectory(currentPath);
+        document.getElementById('back-button').style.display = 'block';
+      } else if (type === 'file') {
+        let targetPath = (currentPath === '/') ? '/' + name : currentPath + '/' + name;
+        authFetch('https://localhost:3000/api/realpath', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ targetPath })
+        })
+        .then(response => response.json())
+        .then(data => { appendChat('Arquivo: ' + data.absolutePath); })
+        .catch(error => { console.error('Erro ao obter caminho absoluto:', error); });
+      }
+    });
+    
+    // Botão para voltar (diretório pai)
+    document.getElementById('back-button').addEventListener('click', function() {
+      if (currentPath === '/') return;
+      const parts = currentPath.split('/');
+      parts.pop();
+      currentPath = parts.join('/') || '/';
+      listDirectory(currentPath);
+      if (currentPath === '/') {
+        document.getElementById('back-button').style.display = 'none';
+      }
+    });
+    
+    // Inicializa a listagem no diretório raiz
+    listDirectory(currentPath);
+  </script>
+</body>
+</html>
